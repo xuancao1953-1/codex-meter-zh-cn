@@ -48,7 +48,7 @@ struct MeterView: View {
             .frame(width: 36, height: 36)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Codex Meter")
+                Text(L10n.appName)
                     .font(.system(size: 15, weight: .semibold))
                 Text(headerSubtitle)
                     .font(.system(size: 11))
@@ -72,16 +72,16 @@ struct MeterView: View {
                 }
             }
             .buttonStyle(.plain)
-            .help("Refresh usage")
+            .help(L10n.refreshUsage)
             .disabled(store.isRefreshing)
-            .accessibilityLabel("Refresh Codex usage")
+            .accessibilityLabel(L10n.refreshCodexUsage)
         }
         .padding(16)
     }
 
     private var accountMenu: some View {
         Menu {
-            Section("Use account") {
+            Section(L10n.useAccount) {
                 ForEach(store.accounts) { account in
                     Button {
                         store.requestAccountSwitch(to: account.id)
@@ -96,12 +96,12 @@ struct MeterView: View {
                 }
             }
             Divider()
-            Button("Add account…", systemImage: "person.badge.plus") {
+            Button(L10n.addAccount, systemImage: "person.badge.plus") {
                 store.addAccount()
             }
             let removableAccounts = store.accounts.filter { $0.homePath != nil }
             if !removableAccounts.isEmpty {
-                Menu("Delete account", systemImage: "trash") {
+                Menu(L10n.deleteAccount, systemImage: "trash") {
                     ForEach(removableAccounts) { account in
                         Button(account.displayName, role: .destructive) {
                             store.deleteAccount(id: account.id)
@@ -125,8 +125,8 @@ struct MeterView: View {
         .menuStyle(.borderlessButton)
         .fixedSize()
         .disabled(store.isSwitchingCodexAccount)
-        .help("Switch Codex account")
-        .accessibilityLabel("Current account: \(store.activeAccountDisplayName). Open account switcher")
+        .help(L10n.switchCodexAccount)
+        .accessibilityLabel(L10n.currentAccountAccessibility(store.activeAccountDisplayName))
     }
 
     @ViewBuilder
@@ -135,7 +135,7 @@ struct MeterView: View {
             DisclosureGroup(isExpanded: $usageWindowsExpanded) {
                 quotaContent
             } label: {
-                SectionLabel(title: "Usage windows", detail: store.activeAccountName)
+                SectionLabel(title: L10n.usageWindows, detail: store.activeAccountName)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
@@ -150,7 +150,7 @@ struct MeterView: View {
                     LocalActivityView(activity: activity, rates: store.costRates, currency: store.currency, totalSavings: store.totalSavings)
                         .padding(.horizontal, -16)
                 } label: {
-                    SectionLabel(title: "Local activity", detail: "\(compactTokens(activity.total.totalTokens)) tokens")
+                    SectionLabel(title: L10n.localActivity, detail: L10n.tokenCount(L10n.compactTokens(activity.total.totalTokens)))
                 }
                 .padding(16)
                 .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -164,7 +164,7 @@ struct MeterView: View {
                     Image(systemName: "exclamationmark.circle")
                         .foregroundStyle(.orange)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Local activity unavailable")
+                        Text(L10n.localActivityUnavailable)
                             .font(.system(size: 11, weight: .medium))
                         Text(activityError)
                             .font(.system(size: 10))
@@ -183,13 +183,13 @@ struct MeterView: View {
             VStack(spacing: 10) {
                 ProgressView()
                     .controlSize(.small)
-                Text("Checking Codex usage…")
+                Text(L10n.quotaChecking)
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, minHeight: 148)
         } else if store.windows.isEmpty {
-            EmptyState(message: store.errorMessage ?? "Usage data is unavailable.") {
+            EmptyState(message: store.errorMessage ?? L10n.usageDataUnavailable) {
                 Task { await store.refresh() }
             }
         } else {
@@ -197,7 +197,7 @@ struct MeterView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "arrow.counterclockwise.circle")
                         .foregroundStyle(Color.accentColor)
-                    Text("Banked resets")
+                    Text(L10n.bankedResets)
                         .font(.system(size: 10, weight: .medium))
                     Spacer()
                     Text(store.bankedResetCount.map(String.init) ?? "—")
@@ -207,8 +207,8 @@ struct MeterView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 9)
                 .help(store.bankedResetCount == nil
-                    ? "OpenAI did not return a banked reset count for this account"
-                    : "Reset credits currently available for this account")
+                    ? L10n.bankedResetsUnknown
+                    : L10n.bankedResetsAvailable)
                 Divider().padding(.leading, 16)
                 ForEach(Array(store.windows.enumerated()), id: \.offset) { index, window in
                     UsageRow(window: window)
@@ -230,7 +230,7 @@ struct MeterView: View {
         DisclosureGroup(isExpanded: $settingsExpanded) {
             footer
         } label: {
-            SectionLabel(title: "Settings", detail: "Display, alerts and accounts")
+            SectionLabel(title: L10n.settingsTitle, detail: L10n.settingsDetail)
         }
         .padding(16)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -244,7 +244,7 @@ struct MeterView: View {
         VStack(spacing: 10) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Active account")
+                    Text(L10n.activeAccount)
                         .font(.system(size: 12))
                     Text(store.activeAccountDisplayName)
                         .font(.system(size: 9))
@@ -252,10 +252,10 @@ struct MeterView: View {
                         .lineLimit(1)
                 }
                 Spacer()
-                Button("Add…") { store.addAccount() }
+                Button(L10n.addShort) { store.addAccount() }
                     .buttonStyle(.plain)
                     .foregroundStyle(Color.accentColor)
-                Button("Delete…") { store.deleteActiveAccount() }
+                Button(L10n.deleteShort) { store.deleteActiveAccount() }
                     .buttonStyle(.plain)
                     .foregroundStyle(store.canDeleteActiveAccount ? Color.red : Color.secondary)
                     .disabled(!store.canDeleteActiveAccount)
@@ -270,20 +270,20 @@ struct MeterView: View {
                 .foregroundStyle(.secondary)
             }
             HStack(spacing: 8) {
-                Text("Desktop switching uses OpenAI's secure sign-in.")
+                Text(L10n.desktopSwitchSignIn)
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
                 Spacer()
-                Button("Open Codex…") { store.openCodex() }
+                Button(L10n.openCodexEllipsis) { store.openCodex() }
                     .buttonStyle(.plain)
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(Color.accentColor)
             }
             HStack {
-                Text("Menu bar")
+                Text(L10n.menuBar)
                     .font(.system(size: 12))
                 Spacer()
-                Picker("Menu bar display", selection: $store.displayMode) {
+                Picker(L10n.menuBarDisplay, selection: $store.displayMode) {
                     ForEach(MenuBarDisplayMode.allCases) { mode in
                         Text(mode.title).tag(mode)
                     }
@@ -292,10 +292,10 @@ struct MeterView: View {
                 .frame(width: 150)
             }
             HStack {
-                Text("Currency")
+                Text(L10n.currency)
                     .font(.system(size: 12))
                 Spacer()
-                Picker("Currency", selection: $store.currency) {
+                Picker(L10n.currency, selection: $store.currency) {
                     ForEach(DisplayCurrency.allCases) { currency in
                         Text(currency.code).tag(currency)
                     }
@@ -304,10 +304,10 @@ struct MeterView: View {
                 .frame(width: 72)
             }
             HStack {
-                Text("Low-usage alert")
+                Text(L10n.lowUsageAlert)
                     .font(.system(size: 12))
                 Spacer()
-                Picker("Low-usage alert", selection: $store.alertThreshold) {
+                Picker(L10n.lowUsageAlert, selection: $store.alertThreshold) {
                     Text("10%").tag(10)
                     Text("20%").tag(20)
                     Text("30%").tag(30)
@@ -315,12 +315,12 @@ struct MeterView: View {
                 .labelsHidden()
                 .frame(width: 72)
             }
-            DisclosureGroup("Fallback USD price for unknown models") {
+            DisclosureGroup(L10n.fallbackPrice) {
                 VStack(spacing: 7) {
-                    CostRateField(label: "Input", value: $store.inputRate)
-                    CostRateField(label: "Cached input", value: $store.cachedInputRate)
-                    CostRateField(label: "Output", value: $store.outputRate)
-                    Text("Only used when a model has no bundled official price. USD per million tokens.")
+                    CostRateField(label: L10n.priceInput, value: $store.inputRate)
+                    CostRateField(label: L10n.priceCachedInput, value: $store.cachedInputRate)
+                    CostRateField(label: L10n.priceOutput, value: $store.outputRate)
+                    Text(L10n.fallbackPriceDetail)
                         .font(.system(size: 9))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -328,17 +328,17 @@ struct MeterView: View {
                 .padding(.top, 6)
             }
             .font(.system(size: 11))
-            Toggle("Launch at login", isOn: Binding(
+            Toggle(L10n.launchAtLogin, isOn: Binding(
                 get: { store.launchAtLogin },
                 set: { store.setLaunchAtLogin($0) }
             ))
             .font(.system(size: 12))
             HStack {
-                Button("Open Codex") { store.openCodex() }
+                Button(L10n.openCodex) { store.openCodex() }
                     .buttonStyle(.plain)
                     .foregroundStyle(Color.accentColor)
                 Spacer()
-                Button("Quit") { NSApplication.shared.terminate(nil) }
+                Button(L10n.quit) { NSApplication.shared.terminate(nil) }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
             }
@@ -348,19 +348,13 @@ struct MeterView: View {
     }
 
     private var headerSubtitle: String {
-        if store.isStale { return "Last update is stale" }
+        if store.isStale { return L10n.lastUpdateStale }
         if let date = store.payload?.fetchedAt {
-            return "Updated \(date.formatted(date: .omitted, time: .shortened))\(store.planLabel.map { " · \($0)" } ?? "")"
+            return L10n.updated(L10n.shortTime(date), plan: store.planLabel)
         }
-        return "Signed in through the Codex app"
+        return L10n.signedInThroughCodex
     }
 
-    private func compactTokens(_ value: Int64) -> String {
-        if value >= 1_000_000_000 { return String(format: "%.1fB", Double(value) / 1_000_000_000) }
-        if value >= 1_000_000 { return String(format: "%.1fM", Double(value) / 1_000_000) }
-        if value >= 1_000 { return String(format: "%.1fK", Double(value) / 1_000) }
-        return "\(value)"
-    }
 }
 
 private struct SectionLabel: View {
@@ -412,18 +406,18 @@ private struct LocalActivityView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Local activity")
+                    Text(L10n.localActivity)
                         .font(.system(size: 12, weight: .medium))
-                    Text("Seven days · read from local session logs")
+                    Text(L10n.sevenDaysLocalLogs)
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 1) {
-                    Text(compactTokens(activity.total.totalTokens))
+                    Text(L10n.compactTokens(activity.total.totalTokens))
                         .font(.system(size: 17, weight: .semibold, design: .rounded))
                         .monospacedDigit()
-                    Text("tokens")
+                    Text(L10n.tokens)
                         .font(.system(size: 9))
                         .foregroundStyle(.secondary)
                 }
@@ -431,20 +425,24 @@ private struct LocalActivityView: View {
 
             Chart(activity.days) { day in
                 BarMark(
-                    x: .value("Day", day.date, unit: .day),
-                    y: .value("Tokens", day.usage.totalTokens)
+                    x: .value(L10n.chartDay, day.date, unit: .day),
+                    y: .value(L10n.chartTokens, day.usage.totalTokens)
                 )
                 .foregroundStyle(Color.accentColor)
                 .cornerRadius(2)
             }
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day)) { value in
-                    AxisValueLabel(format: .dateTime.weekday(.narrow))
+                    if let date = value.as(Date.self) {
+                        AxisValueLabel {
+                            Text(L10n.weekday(date))
+                        }
+                    }
                 }
             }
             .chartYAxis(.hidden)
             .frame(height: 62)
-            .accessibilityLabel("Seven-day local token activity")
+            .accessibilityLabel(L10n.sevenDayLocalTokenActivity)
             .accessibilityValue(accessibilitySummary)
 
             if !activity.models.isEmpty {
@@ -468,17 +466,17 @@ private struct LocalActivityView: View {
             }
 
             HStack {
-                Text("Today \(compactTokens(activity.today.totalTokens))")
+                Text(L10n.todayTokens(L10n.compactTokens(activity.today.totalTokens)))
                 Spacer()
-                Text("API-equivalent ≈ \(formatted(automaticEstimate))")
+                Text(L10n.apiEquivalent(formatted(automaticEstimate)))
             }
             .font(.system(size: 10))
             .foregroundStyle(.secondary)
-            Text("API prices checked 15 Jul 2026 · estimate only")
+            Text(L10n.apiPriceNote)
                 .font(.system(size: 9))
                 .foregroundStyle(.tertiary)
             if totalSavings > 0 {
-                Text("Estimated savings vs GPT-5.6 Sol: \(formatted(totalSavings))")
+                Text(L10n.estimatedSavingsVersusSol(formatted(totalSavings)))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(Color.accentColor)
             }
@@ -499,28 +497,24 @@ private struct LocalActivityView: View {
             return formatted(currency.convertFromUSD(price.estimate(item.usage)))
         }
         if rates.isConfigured { return formatted(currency.convertFromUSD(rates.estimate(item.usage))) + "*" }
-        return "Unpriced"
+        return L10n.unpriced
     }
 
     private func modelShare(_ item: ModelTokenUsage) -> String {
         guard activity.total.totalTokens > 0 else { return "0%" }
-        return "\(Int((Double(item.usage.totalTokens) / Double(activity.total.totalTokens) * 100).rounded()))% · \(compactTokens(item.usage.totalTokens))"
+        return "\(Int((Double(item.usage.totalTokens) / Double(activity.total.totalTokens) * 100).rounded()))% · \(L10n.compactTokens(item.usage.totalTokens))"
     }
 
     private func formatted(_ amount: Double) -> String {
-        "\(currency.symbol)\(amount.formatted(.number.precision(.fractionLength(2))))"
-    }
-
-    private func compactTokens(_ value: Int64) -> String {
-        if value >= 1_000_000_000 { return String(format: "%.1fB", Double(value) / 1_000_000_000) }
-        if value >= 1_000_000 { return String(format: "%.1fM", Double(value) / 1_000_000) }
-        if value >= 1_000 { return String(format: "%.1fK", Double(value) / 1_000) }
-        return "\(value)"
+        L10n.currencyAmount(amount, symbol: currency.symbol)
     }
 
     private var accessibilitySummary: String {
         activity.days.map { day in
-            "\(day.date.formatted(.dateTime.weekday(.wide))): \(day.usage.totalTokens) tokens"
+            L10n.dailyTokenAccessibility(
+                weekday: L10n.weekday(day.date),
+                tokens: day.usage.totalTokens
+            )
         }.joined(separator: ", ")
     }
 }
@@ -536,7 +530,7 @@ private struct CostRateField: View {
             TextField("0", value: $value, format: .number.precision(.fractionLength(0...2)))
                 .multilineTextAlignment(.trailing)
                 .frame(width: 58)
-            Text("$/M")
+            Text(L10n.pricePerMillion)
                 .foregroundStyle(.secondary)
         }
     }
@@ -550,7 +544,7 @@ private struct UsageRow: View {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text(window.displayName)
+                        Text(L10n.usageWindowName(durationMinutes: window.durationMinutes))
                             .font(.system(size: 12, weight: .medium))
                         if let warningText {
                             Text(warningText)
@@ -564,18 +558,23 @@ private struct UsageRow: View {
                         .help(ResetTimeFormatter.absoluteText(for: window.resetsAt) ?? "")
                 }
                 Spacer()
-                Text("\(window.remainingPercent)%")
+                Text(L10n.percentage(window.remainingPercent))
                     .font(.system(size: 22, weight: .semibold, design: .rounded))
                     .monospacedDigit()
-                    .accessibilityLabel("\(window.remainingPercent) percent remaining")
+                    .accessibilityLabel(L10n.remainingPercent(window.remainingPercent))
             }
 
             ProgressView(value: Double(window.remainingPercent), total: 100)
                 .progressViewStyle(.linear)
                 .tint(meterColor)
                 .animation(.easeInOut(duration: 0.45), value: window.remainingPercent)
-                .accessibilityLabel(window.displayName)
-                .accessibilityValue("\(window.remainingPercent) percent remaining. \(ResetTimeFormatter.relativeText(for: window.resetsAt))")
+                .accessibilityLabel(L10n.usageWindowName(durationMinutes: window.durationMinutes))
+                .accessibilityValue(
+                    L10n.remainingWithResetAccessibility(
+                        window.remainingPercent,
+                        reset: ResetTimeFormatter.relativeText(for: window.resetsAt)
+                    )
+                )
         }
         .padding(16)
     }
@@ -587,8 +586,8 @@ private struct UsageRow: View {
     }
 
     private var warningText: String? {
-        if window.remainingPercent <= 10 { return "Nearly exhausted" }
-        if window.remainingPercent <= 25 { return "Running low" }
+        if window.remainingPercent <= 10 { return L10n.nearlyExhausted }
+        if window.remainingPercent <= 25 { return L10n.runningLow }
         return nil
     }
 }
@@ -602,14 +601,14 @@ private struct EmptyState: View {
             Image(systemName: "exclamationmark.circle")
                 .font(.system(size: 24))
                 .foregroundStyle(.secondary)
-            Text("Usage unavailable")
+            Text(L10n.quotaUnavailable)
                 .font(.system(size: 13, weight: .semibold))
             Text(message)
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 260)
-            Button("Try again", action: retry)
+            Button(L10n.tryAgain, action: retry)
                 .controlSize(.small)
         }
         .frame(maxWidth: .infinity, minHeight: 166)

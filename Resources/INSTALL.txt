@@ -1,12 +1,12 @@
-CODEX METER
+CODEX METER 中文版
 
-APP
-1. Move "Codex Meter.app" to /Applications.
-2. Control-click it and choose Open the first time if macOS asks.
+应用程序
+1. 将“Codex Meter 中文版.app”移到 /Applications。
+2. 首次启动时，如 macOS 显示安全提示，请按住 Control 键点按应用程序，然后选择“打开”。
 
-CLI (OPTIONAL)
-Move "codex-meter" somewhere on your PATH, for example:
+命令行工具（可选）
+将“codex-meter”移到 PATH 中的目录，例如：
 
   install -m 755 codex-meter /usr/local/bin/codex-meter
 
-Run "codex-meter --help" for status, JSON, threshold alerts, and local history.
+运行“codex-meter --help”可查看状态、JSON 输出、阈值提醒和本地历史记录。

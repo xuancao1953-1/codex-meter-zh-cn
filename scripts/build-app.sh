@@ -3,10 +3,14 @@ set -euo pipefail
 
 ROOT="${0:A:h:h}"
 OUTPUT="${1:-$ROOT/dist}"
-FINAL_APP="$OUTPUT/Codex Meter.app"
+FINAL_APP="$OUTPUT/Codex Meter 中文版.app"
 FINAL_CLI="$OUTPUT/codex-meter"
+ARCHIVE_NAME="Codex-Meter-ZH-CN-1.5.0-zh.1.zip"
+CHECKSUM_NAME="$ARCHIVE_NAME.sha256"
+ARCHIVE="$OUTPUT/$ARCHIVE_NAME"
+CHECKSUM="$OUTPUT/$CHECKSUM_NAME"
 STAGE="$(mktemp -d)"
-APP="$STAGE/Codex Meter.app"
+APP="$STAGE/Codex Meter 中文版.app"
 trap 'rm -rf "$STAGE"' EXIT
 
 cd "$ROOT"
@@ -23,6 +27,7 @@ xcrun lipo -create \
   "$ROOT/.build-x86_64/x86_64-apple-macosx/release/codex-meter" \
   -output "$STAGE/codex-meter"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
+cp -R "$ROOT/Resources/zh-Hans.lproj" "$APP/Contents/Resources/"
 
 xattr -cr "$APP"
 codesign --force --deep --sign - "$APP"
@@ -38,4 +43,10 @@ codesign --verify --deep --strict "$FINAL_APP"
 cp "$STAGE/codex-meter" "$FINAL_CLI"
 chmod 755 "$FINAL_CLI"
 codesign --verify --strict "$FINAL_CLI"
+rm -f "$ARCHIVE" "$CHECKSUM"
+ditto -c -k --sequesterRsrc --keepParent "$FINAL_APP" "$ARCHIVE"
+(
+  cd "$OUTPUT"
+  shasum -a 256 "$ARCHIVE_NAME" > "$CHECKSUM_NAME"
+)
 echo "$FINAL_APP"

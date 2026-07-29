@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT="${0:A:h:h}"
+python3 "$ROOT/Tests/LocalizationAudit.py"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 

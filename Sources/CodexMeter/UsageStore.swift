@@ -13,10 +13,10 @@ enum MenuBarDisplayMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .iconAndPercentage: return "Icon + percentage"
-        case .percentage: return "Percentage only"
-        case .icon: return "Icon only"
-        case .activity: return "Activity chart"
+        case .iconAndPercentage: return L10n.displayIconAndPercentage
+        case .percentage: return L10n.displayPercentage
+        case .icon: return L10n.displayIcon
+        case .activity: return L10n.displayActivity
         }
     }
 }
@@ -28,7 +28,7 @@ struct AccountProfile: Codable, Equatable, Identifiable {
     var email: String?
 
     var homeURL: URL? { homePath.map(URL.init(fileURLWithPath:)) }
-    var displayName: String { email ?? name }
+    var displayName: String { email ?? (homePath == nil ? L10n.defaultAccount : name) }
 }
 
 struct Celebration: Equatable, Identifiable {
@@ -86,7 +86,7 @@ final class UsageStore: ObservableObject {
     private static let resetMilestoneKey = "lastBankedReset"
 
     init(previewMode: Bool = false) {
-        let defaultAccount = AccountProfile(id: UUID(), name: "Default", homePath: nil, email: nil)
+        let defaultAccount = AccountProfile(id: UUID(), name: L10n.defaultAccount, homePath: nil, email: nil)
         let loadedAccounts: [AccountProfile]
         if let data = UserDefaults.standard.data(forKey: Self.accountsKey),
            let decoded = try? JSONDecoder().decode([AccountProfile].self, from: data), !decoded.isEmpty {
@@ -146,8 +146,15 @@ final class UsageStore: ObservableObject {
     }
 
     var windows: [RateLimitWindow] { payload?.snapshot.windows ?? [] }
-    var activeAccountName: String { accounts.first(where: { $0.id == activeAccountID })?.name ?? "Default" }
-    var activeAccountDisplayName: String { accounts.first(where: { $0.id == activeAccountID })?.displayName ?? "Default" }
+    var activeAccountName: String {
+        guard let account = accounts.first(where: { $0.id == activeAccountID }) else {
+            return L10n.defaultAccount
+        }
+        return account.homePath == nil ? L10n.defaultAccount : account.name
+    }
+    var activeAccountDisplayName: String {
+        accounts.first(where: { $0.id == activeAccountID })?.displayName ?? L10n.defaultAccount
+    }
     var canDeleteActiveAccount: Bool { accounts.first(where: { $0.id == activeAccountID })?.homePath != nil }
     var bankedResetCount: Int? { payload?.availableResetCredits }
     var totalSavingsUSD: Double {
@@ -164,7 +171,8 @@ final class UsageStore: ObservableObject {
         return payload?.snapshot.mostConstrainedRemaining
     }
     var planLabel: String? {
-        payload?.snapshot.planType?.replacingOccurrences(of: "_", with: " ").capitalized
+        guard let planType = payload?.snapshot.planType else { return nil }
+        return L10n.planName(planType)
     }
     var costRates: LocalCostRates {
         LocalCostRates(inputPerMillion: inputRate, cachedInputPerMillion: cachedInputRate, outputPerMillion: outputRate)
@@ -204,7 +212,8 @@ final class UsageStore: ObservableObject {
             detectActivityMilestones(previous: previous, current: activity)
         } catch {
             activity = nil
-            activityError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            let detail = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            activityError = L10n.activityScanFailed(detail)
         }
     }
 
@@ -216,11 +225,12 @@ final class UsageStore: ObservableObject {
             let newPayload = try await client.readRateLimits()
             let previous = payload
             payload = newPayload
-            errorMessage = newPayload.snapshot.windows.isEmpty ? "No Codex rate-limit windows were returned for this account." : nil
+            errorMessage = newPayload.snapshot.windows.isEmpty ? L10n.noRateLimitWindows : nil
             await notifyIfNeeded(newPayload)
             detectBankedResetMilestone(previous: previous, current: newPayload)
         } catch {
-            errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            let detail = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            errorMessage = L10n.usageRefreshFailed(detail)
             await client.stop()
         }
     }
@@ -230,7 +240,7 @@ final class UsageStore: ObservableObject {
         do {
             if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
         } catch {
-            errorMessage = "Launch at login could not be changed: \(error.localizedDescription)"
+            errorMessage = L10n.launchAtLoginFailed(error.localizedDescription)
         }
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
@@ -245,13 +255,13 @@ final class UsageStore: ObservableObject {
         let discoveredURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.openai.codex")
         let fallbackURL = URL(fileURLWithPath: "/Applications/ChatGPT.app")
         guard let appURL = discoveredURL ?? (FileManager.default.fileExists(atPath: fallbackURL.path) ? fallbackURL : nil) else {
-            errorMessage = "Codex is not installed in /Applications."
+            errorMessage = L10n.codexNotInstalled
             return
         }
         NSWorkspace.shared.openApplication(at: appURL, configuration: .init()) { [weak self] _, error in
             Task { @MainActor in
                 if let error {
-                    self?.errorMessage = "Codex could not be opened: \(error.localizedDescription)"
+                    self?.errorMessage = L10n.openCodexFailed(error.localizedDescription)
                 } else if let settingsURL {
                     _ = NSWorkspace.shared.open(settingsURL)
                 }
@@ -264,20 +274,20 @@ final class UsageStore: ObservableObject {
         guard let profile = accounts.first(where: { $0.id == id }) else { return }
 
         let alert = NSAlert()
-        alert.messageText = "Switch to \(profile.displayName)?"
+        alert.messageText = L10n.switchToAccount(profile.displayName)
         alert.informativeText = profile.homeURL == nil
-            ? "This is the Codex desktop profile. Codex Meter will switch its usage view to the account currently signed in there."
-            : "Choose whether to switch only Codex Meter, or also sign the Codex desktop app out and open OpenAI's secure browser login for this account."
+            ? L10n.switchDesktopProfileInfo
+            : L10n.switchPrivateProfileInfo
         if profile.homeURL == nil {
-            alert.addButton(withTitle: "Switch Meter")
-            alert.addButton(withTitle: "Cancel")
+            alert.addButton(withTitle: L10n.switchMeter)
+            alert.addButton(withTitle: L10n.cancel)
             guard alert.runModal() == .alertFirstButtonReturn else { return }
             switchMeterAccount(to: id)
             return
         }
-        alert.addButton(withTitle: "Meter + Codex")
-        alert.addButton(withTitle: "Meter Only")
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: L10n.switchMeterAndCodex)
+        alert.addButton(withTitle: L10n.meterOnly)
+        alert.addButton(withTitle: L10n.cancel)
         switch alert.runModal() {
         case .alertFirstButtonReturn:
             switchMeterAccount(to: id)
@@ -306,13 +316,13 @@ final class UsageStore: ObservableObject {
 
     func addAccount() {
         let alert = NSAlert()
-        alert.messageText = "Add Codex account"
-        alert.informativeText = "Choose a label. Codex Meter will open OpenAI's secure browser sign-in for a private profile on this Mac. Passwords and verification codes stay on OpenAI's page."
-        let field = NSTextField(string: "Work")
+        alert.messageText = L10n.addAccountTitle
+        alert.informativeText = L10n.addAccountInfo
+        let field = NSTextField(string: L10n.workAccount)
         field.frame = NSRect(x: 0, y: 0, width: 240, height: 24)
         alert.accessoryView = field
-        alert.addButton(withTitle: "Continue")
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: L10n.continueAction)
+        alert.addButton(withTitle: L10n.cancel)
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         let name = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return }
@@ -332,7 +342,7 @@ final class UsageStore: ObservableObject {
             persistAccounts()
             startLogin(for: profile)
         } catch {
-            errorMessage = "The account profile could not be created: \(error.localizedDescription)"
+            errorMessage = L10n.createAccountFailed(error.localizedDescription)
         }
     }
 
@@ -345,10 +355,10 @@ final class UsageStore: ObservableObject {
         let wasActive = profile.id == activeAccountID
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Delete \(profile.name)?"
-        alert.informativeText = "This removes the locally saved Codex credentials and usage profile from this Mac. It does not delete the OpenAI account."
-        alert.addButton(withTitle: "Delete Account")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = L10n.deleteAccountTitle(profile.name)
+        alert.informativeText = L10n.deleteAccountInfo
+        alert.addButton(withTitle: L10n.deleteAccountAction)
+        alert.addButton(withTitle: L10n.cancel)
         guard alert.runModal() == .alertFirstButtonReturn else { return }
 
         if wasActive {
@@ -369,14 +379,14 @@ final class UsageStore: ObservableObject {
                     activity = nil
                     start()
                 }
-                celebration = Celebration(title: "Account removed", subtitle: "Local credentials were deleted", symbol: "trash")
+                celebration = Celebration(title: L10n.accountRemoved, subtitle: L10n.localCredentialsDeleted, symbol: "trash")
                 dismissCelebration()
             } catch {
                 if wasActive {
                     client = CodexAppServerClient(codexHome: profile.homeURL)
                     start()
                 }
-                errorMessage = "The local account could not be deleted: \(error.localizedDescription)"
+                errorMessage = L10n.deleteLocalAccountFailed(error.localizedDescription)
             }
         }
     }
@@ -400,7 +410,7 @@ final class UsageStore: ObservableObject {
             try process.run()
             loginProcesses[profile.id] = process
         } catch {
-            errorMessage = "Codex login could not be started: \(error.localizedDescription)"
+            errorMessage = L10n.startCodexLoginFailed(error.localizedDescription)
         }
     }
 
@@ -409,7 +419,7 @@ final class UsageStore: ObservableObject {
         guard succeeded else {
             accounts.removeAll { $0.id == profileID }
             persistAccounts()
-            errorMessage = "The OpenAI sign-in was cancelled or did not complete. You can add the account again when ready."
+            errorMessage = L10n.signInIncomplete
             return
         }
         Task { await finishSuccessfulLogin(profileID: profileID) }
@@ -425,7 +435,7 @@ final class UsageStore: ObservableObject {
             await identityClient.stop()
         }
         switchMeterAccount(to: profileID)
-        celebration = Celebration(title: "Account ready", subtitle: "Secure sign-in completed", symbol: "person.crop.circle.badge.checkmark")
+        celebration = Celebration(title: L10n.accountReady, subtitle: L10n.secureSignInCompleted, symbol: "person.crop.circle.badge.checkmark")
         dismissCelebration()
     }
 
@@ -441,7 +451,14 @@ final class UsageStore: ObservableObject {
         let savedStep = UserDefaults.standard.integer(forKey: Self.savingsMilestoneKey)
         if savingsStep > savedStep, savingsStep > 0 {
             UserDefaults.standard.set(savingsStep, forKey: Self.savingsMilestoneKey)
-            celebration = Celebration(title: "\(currency.code) \(Int(currency.convertFromUSD(newSavings))) saved", subtitle: "Estimated savings versus GPT-5.6 Sol", symbol: "sparkles")
+            celebration = Celebration(
+                title: L10n.savingsMilestone(
+                    currencyCode: currency.code,
+                    amount: Int(currency.convertFromUSD(newSavings))
+                ),
+                subtitle: L10n.savingsVersusSol,
+                symbol: "sparkles"
+            )
             dismissCelebration()
             return
         }
@@ -449,7 +466,11 @@ final class UsageStore: ObservableObject {
         let oldTokenStep = UserDefaults.standard.integer(forKey: Self.tokenMilestoneKey)
         if tokenStep >= 1, tokenStep > oldTokenStep, (tokenStep % 10 == 0 || oldTokenStep == 0) {
             UserDefaults.standard.set(tokenStep, forKey: Self.tokenMilestoneKey)
-            celebration = Celebration(title: "Token milestone", subtitle: "You have used \(tokenStep)M local tokens", symbol: "bolt.fill")
+            celebration = Celebration(
+                title: L10n.tokenMilestone,
+                subtitle: L10n.tokenMilestoneDetail(tokenStep),
+                symbol: "bolt.fill"
+            )
             dismissCelebration()
         }
     }
@@ -467,21 +488,25 @@ final class UsageStore: ObservableObject {
         let key = "\(activeAccountID.uuidString)-\(currentCount)"
         guard UserDefaults.standard.string(forKey: Self.resetMilestoneKey) != key else { return }
         UserDefaults.standard.set(key, forKey: Self.resetMilestoneKey)
-        celebration = Celebration(title: "Reset banked", subtitle: "\(currentCount) available for this account", symbol: "arrow.counterclockwise.circle.fill")
+        celebration = Celebration(
+            title: L10n.resetBanked,
+            subtitle: L10n.resetBankedDetail(currentCount),
+            symbol: "arrow.counterclockwise.circle.fill"
+        )
         dismissCelebration()
     }
 
     private func switchCodexDesktopAccount(to profile: AccountProfile) async {
         guard !isSwitchingCodexAccount else { return }
         isSwitchingCodexAccount = true
-        accountSwitchStatus = "Signing Codex out…"
+        accountSwitchStatus = L10n.signingCodexOut
         errorMessage = nil
 
         let desktopClient = CodexAppServerClient()
         do {
             var expectedEmail = profile.email
             if expectedEmail == nil, let home = profile.homeURL {
-                accountSwitchStatus = "Checking \(profile.name)…"
+                accountSwitchStatus = L10n.checkingAccount(profile.name)
                 let profileClient = CodexAppServerClient(codexHome: home)
                 if let account = try? await profileClient.readAccount() {
                     expectedEmail = account.email
@@ -492,28 +517,28 @@ final class UsageStore: ObservableObject {
                 }
                 await profileClient.stop()
             }
-            accountSwitchStatus = "Signing Codex out…"
+            accountSwitchStatus = L10n.signingCodexOut
             try await closeCodexDesktop()
             try await desktopClient.logoutAccount()
-            accountSwitchStatus = "Waiting for secure OpenAI sign-in…"
+            accountSwitchStatus = L10n.waitingSecureSignIn
             let login = try await desktopClient.startChatGPTLogin()
             guard NSWorkspace.shared.open(login.authorizationURL) else {
-                throw CodexClientError.server("The OpenAI sign-in page could not be opened in your browser.")
+                throw CodexClientError.server(L10n.signInPageOpenFailed)
             }
             try await desktopClient.waitForLogin(id: login.id)
             guard let signedIn = try await desktopClient.readAccount(refreshToken: true) else {
-                throw CodexClientError.server("Codex did not report a signed-in account after login.")
+                throw CodexClientError.server(L10n.signedInAccountMissing)
             }
             if let expected = expectedEmail, let actual = signedIn.email,
                expected.caseInsensitiveCompare(actual) != .orderedSame {
-                throw CodexClientError.server("Codex signed in as \(actual), not \(expected). Sign in again and choose the intended account.")
+                throw CodexClientError.server(L10n.signedInAccountMismatch(actual: actual, expected: expected))
             }
             await desktopClient.stop()
             accountSwitchStatus = nil
             isSwitchingCodexAccount = false
             openCodex()
             celebration = Celebration(
-                title: "Codex account switched",
+                title: L10n.codexAccountSwitched,
                 subtitle: signedIn.email ?? profile.displayName,
                 symbol: "person.crop.circle.badge.checkmark"
             )
@@ -522,7 +547,8 @@ final class UsageStore: ObservableObject {
             await desktopClient.stop()
             accountSwitchStatus = nil
             isSwitchingCodexAccount = false
-            errorMessage = "Codex account switch failed: \((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)"
+            let detail = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            errorMessage = L10n.switchAccountFailed(detail)
             openCodex()
         }
     }
@@ -533,7 +559,7 @@ final class UsageStore: ObservableObject {
         let deadline = ContinuousClock.now + .seconds(8)
         while NSRunningApplication.runningApplications(withBundleIdentifier: "com.openai.codex").contains(where: { !$0.isTerminated }) {
             guard ContinuousClock.now < deadline else {
-                throw CodexClientError.server("Codex could not be closed before signing out. Quit Codex and try again.")
+                throw CodexClientError.server(L10n.closeCodexFailed)
             }
             try await Task.sleep(for: .milliseconds(150))
         }
@@ -553,7 +579,11 @@ final class UsageStore: ObservableObject {
         guard UserDefaults.standard.string(forKey: Self.notifiedResetKey) != resetID else { return }
 
         if !previewMode {
-            celebration = Celebration(title: "Usage running low", subtitle: "\(constrained.remainingPercent)% remains in the tightest window", symbol: "exclamationmark.triangle.fill")
+            celebration = Celebration(
+                title: L10n.usageRunningLow,
+                subtitle: L10n.tightestWindowLow(constrained.remainingPercent),
+                symbol: "exclamationmark.triangle.fill"
+            )
             dismissCelebration()
         }
 
@@ -562,8 +592,11 @@ final class UsageStore: ObservableObject {
         guard granted else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "Codex usage is running low"
-        content.body = "\(constrained.remainingPercent)% remains. \(ResetTimeFormatter.notificationText(for: constrained.resetsAt))"
+        content.title = L10n.lowUsageNotificationTitle
+        content.body = L10n.lowUsageNotificationBody(
+            constrained.remainingPercent,
+            reset: ResetTimeFormatter.notificationText(for: constrained.resetsAt)
+        )
         content.sound = .default
         try? await center.add(UNNotificationRequest(identifier: "codex-meter-low-\(resetID)", content: content, trigger: nil))
         UserDefaults.standard.set(resetID, forKey: Self.notifiedResetKey)
@@ -578,20 +611,16 @@ final class UsageStore: ObservableObject {
 
 enum ResetTimeFormatter {
     static func relativeText(for date: Date?, now: Date = Date()) -> String {
-        guard let date else { return "Reset time unavailable" }
-        if date <= now { return "Resetting now" }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        return "Resets \(formatter.localizedString(for: date, relativeTo: now))"
+        L10n.relativeReset(date, now: now)
     }
 
     static func absoluteText(for date: Date?) -> String? {
         guard let date else { return nil }
-        return date.formatted(date: .abbreviated, time: .shortened)
+        return L10n.dateTime(date)
     }
 
     static func notificationText(for date: Date?) -> String {
-        guard let date else { return "The reset time is unavailable." }
-        return "It resets \(date.formatted(date: .omitted, time: .shortened))."
+        guard let date else { return L10n.resetNotificationUnavailable }
+        return L10n.resetNotification(L10n.shortTime(date))
     }
 }
