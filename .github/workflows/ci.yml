@@ -13,17 +13,43 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v5
-      - name: Parser checks and debug build
-        env:
-          SKIP_LIVE_CODEX_CHECK: "1"
-        run: ./scripts/test.sh
-      - name: Build universal app
+      - name: Audit Simplified Chinese edition
+        run: python3 Tests/LocalizationAudit.py
+      - name: Run offline tests
+        run: SKIP_LIVE_CODEX_CHECK=1 ./scripts/test.sh
+      - name: Build universal Chinese app
         run: ./scripts/build-app.sh dist
-      - name: Verify architectures and signature
+      - name: Verify app, resources, signatures, and ZIP
         run: |
-          file "dist/Codex Meter.app/Contents/MacOS/CodexMeter"
-          lipo "dist/Codex Meter.app/Contents/MacOS/CodexMeter" -verify_arch arm64 x86_64
+          APP="dist/Codex Meter 中文版.app"
+          ZIP="dist/Codex-Meter-ZH-CN-1.5.0-zh.1.zip"
+          test -f "$APP/Contents/Resources/zh-Hans.lproj/Localizable.strings"
+          cmp Resources/zh-Hans.lproj/Localizable.strings \
+            "$APP/Contents/Resources/zh-Hans.lproj/Localizable.strings"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' \
+            "$APP/Contents/Info.plist")" = "Codex Meter 中文版"
+          lipo "$APP/Contents/MacOS/CodexMeter" -verify_arch arm64 x86_64
           lipo "dist/codex-meter" -verify_arch arm64 x86_64
-          codesign --verify --deep --strict "dist/Codex Meter.app"
+          codesign --verify --deep --strict "$APP"
           codesign --verify --strict "dist/codex-meter"
-          "dist/codex-meter" --help
+          unzip -tq "$ZIP"
+          (cd dist && shasum -a 256 -c "Codex-Meter-ZH-CN-1.5.0-zh.1.zip.sha256")
+          STAGE="$(mktemp -d)"
+          trap 'rm -rf "$STAGE"' EXIT
+          ditto -x -k "$ZIP" "$STAGE"
+          EXPECTED_APP="$STAGE/Codex Meter 中文版.app"
+          shopt -s nullglob dotglob
+          ROOT_ENTRIES=("$STAGE"/*)
+          shopt -u nullglob dotglob
+          test "${#ROOT_ENTRIES[@]}" -eq 1
+          test "${ROOT_ENTRIES[0]}" = "$EXPECTED_APP"
+          ARCHIVED_APP="$EXPECTED_APP"
+          test -f "$ARCHIVED_APP/Contents/Resources/zh-Hans.lproj/Localizable.strings"
+          lipo "$ARCHIVED_APP/Contents/MacOS/CodexMeter" -verify_arch arm64 x86_64
+          codesign --verify --deep --strict "$ARCHIVED_APP"
+      - name: Upload Chinese ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: Codex-Meter-ZH-CN-1.5.0-zh.1
+          path: dist/Codex-Meter-ZH-CN-1.5.0-zh.1.zip
+          if-no-files-found: error

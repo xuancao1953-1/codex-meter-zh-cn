@@ -26,7 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "gauge", accessibilityDescription: "Codex usage")
+            button.image = NSImage(systemSymbolName: "gauge", accessibilityDescription: L10n.codexUsage)
             button.imagePosition = .imageLeading
             button.title = "—"
             button.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
@@ -47,7 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 backing: .buffered,
                 defer: false
             )
-            window.title = "Codex Meter"
+            window.title = L10n.appName
             window.contentViewController = NSHostingController(rootView: MeterView(store: store))
             window.center()
             window.makeKeyAndOrderFront(nil)
@@ -71,9 +71,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         guard let button = statusItem.button else { return }
         if NSApp.currentEvent?.type == .rightMouseUp {
             let menu = NSMenu()
-            menu.addItem(withTitle: "Refresh", action: #selector(refresh), keyEquivalent: "r").target = self
+            menu.addItem(withTitle: L10n.menuRefresh, action: #selector(refresh), keyEquivalent: "r").target = self
             menu.addItem(.separator())
-            menu.addItem(withTitle: "Quit Codex Meter", action: #selector(quit), keyEquivalent: "q").target = self
+            menu.addItem(withTitle: L10n.menuQuit, action: #selector(quit), keyEquivalent: "q").target = self
             statusItem.menu = menu
             button.performClick(nil)
             statusItem.menu = nil
@@ -96,35 +96,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if let remaining = store.menuBarRemaining {
             switch store.displayMode {
             case .iconAndPercentage:
-                button.image = NSImage(systemSymbolName: "gauge", accessibilityDescription: "Codex usage")
-                button.title = store.totalSavings > 0 ? "\(remaining)% · \(store.currency.code)\(Int(store.totalSavings))" : "\(remaining)%"
+                button.image = NSImage(systemSymbolName: "gauge", accessibilityDescription: L10n.codexUsage)
+                button.title = store.totalSavings > 0
+                    ? L10n.percentageWithSavings(
+                        remaining,
+                        currencyCode: store.currency.code,
+                        amount: Int(store.totalSavings)
+                    )
+                    : L10n.percentage(remaining)
             case .percentage:
                 button.image = nil
-                button.title = "\(remaining)%"
+                button.title = L10n.percentage(remaining)
             case .icon:
-                button.image = NSImage(systemSymbolName: "gauge", accessibilityDescription: "Codex usage")
+                button.image = NSImage(systemSymbolName: "gauge", accessibilityDescription: L10n.codexUsage)
                 button.title = ""
             case .activity:
                 let days = store.activity?.days ?? []
                 button.image = days.isEmpty
-                    ? NSImage(systemSymbolName: "chart.bar", accessibilityDescription: "Codex activity")
+                    ? NSImage(systemSymbolName: "chart.bar", accessibilityDescription: L10n.codexActivity)
                     : activityImage(from: days)
                 button.title = ""
             }
-            let savingsText = store.totalSavings > 0 ? " Estimated savings: \(store.currency.code) \(Int(store.totalSavings))." : ""
-            button.toolTip = "Codex: \(remaining)% remaining in the tightest usage window.\(savingsText)"
+            let savingsText = store.totalSavings > 0
+                ? L10n.estimatedSavings(store.currency.code, Int(store.totalSavings))
+                : ""
+            button.toolTip = L10n.tightestWindowRemaining(remaining, savings: savingsText)
         } else {
-            button.image = NSImage(systemSymbolName: "exclamationmark.circle", accessibilityDescription: "Codex usage unavailable")
+            button.image = NSImage(systemSymbolName: "exclamationmark.circle", accessibilityDescription: L10n.codexUsageUnavailable)
             button.title = "—"
             if let error = store.errorMessage {
-                button.toolTip = "Codex usage unavailable: \(error)"
+                button.toolTip = L10n.usageUnavailableDetail(error)
             } else if store.isStale, let updated = store.payload?.fetchedAt {
-                button.toolTip = "Codex usage is out of date. Last updated \(updated.formatted(date: .omitted, time: .shortened))."
+                button.toolTip = L10n.staleUsage(L10n.shortTime(updated))
             } else {
-                button.toolTip = "Checking Codex usage"
+                button.toolTip = L10n.quotaChecking
             }
         }
-        button.setAccessibilityLabel(button.toolTip ?? "Codex usage")
+        button.setAccessibilityLabel(button.toolTip ?? L10n.codexUsage)
     }
 
     private func activityImage(from days: [DailyTokenUsage]) -> NSImage {
@@ -139,7 +147,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             NSBezierPath(roundedRect: NSRect(x: CGFloat(index) * 3.1, y: 1, width: 2.2, height: CGFloat(height)), xRadius: 0.7, yRadius: 0.7).fill()
         }
         image.isTemplate = true
-        image.accessibilityDescription = "Seven-day Codex activity"
+        image.accessibilityDescription = L10n.sevenDayCodexActivity
         return image
     }
 }

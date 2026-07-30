@@ -1,171 +1,115 @@
 <p align="center">
-  <img src="docs/images/hero.svg" alt="Codex Meter — know what's left and what used it" width="100%">
+  <img src="docs/images/hero.svg" alt="Codex Meter 中文版——随时查看 Codex 剩余额度" width="100%">
 </p>
 
-<h1 align="center">Codex Meter</h1>
+<h1 align="center">Codex Meter 中文版</h1>
 
-<p align="center"><strong>Your Codex limits, reset times, model usage and local cost estimate—right in the macOS menu bar.</strong></p>
+<p align="center"><strong>在 macOS 菜单栏查看 Codex 剩余额度、重置时间、模型用量与本地费用估算。</strong></p>
 
-<p align="center">No extra account. No analytics. No Electron. Just one small native Mac app doing one useful job.</p>
+本仓库是基于 TheJhyeFactor/codex-meter 制作的简体中文独立版本。
+上游仓库：https://github.com/TheJhyeFactor/codex-meter；原作者：[Jhye / The Jhye Factor](https://github.com/TheJhyeFactor)。
+本项目保留并遵循上游的 MIT License，是非官方社区项目，不代表上游作者或 OpenAI。
+导入的上游版本、固定提交及中文版变更见 [UPSTREAM.md](UPSTREAM.md)。
 
-<p align="center">
-  <a href="https://github.com/TheJhyeFactor/codex-meter/releases/latest"><img src="https://img.shields.io/badge/macOS-13%2B-17181B?logo=apple" alt="macOS 13+"></a>
-  <a href="https://www.swift.org/"><img src="https://img.shields.io/badge/Swift-6-17181B?logo=swift&logoColor=white" alt="Swift 6"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-17181B" alt="MIT License"></a>
-  <a href="https://github.com/TheJhyeFactor/codex-meter/releases/latest"><img src="https://img.shields.io/github/v/release/TheJhyeFactor/codex-meter?display_name=tag&sort=semver&color=087FF5" alt="Latest release"></a>
-</p>
+## 功能
 
-Codex Meter is a free, open-source macOS menu bar app that shows how much Codex usage you have left, when it resets, which models used it, and what that activity would cost at standard API rates.
+- 在菜单栏直接显示当前最紧张的 Codex 剩余额度。
+- 展示各额度周期的剩余比例与本地重置时间，并每两分钟自动刷新。
+- 支持 10%、20% 或 30% 的低额度通知。
+- 无法获取最新数据时明确显示不可用状态，不用过期数字冒充实时结果。
+- 从本机 Codex 会话日志的汇总事件生成七天用量图和模型明细。
+- 按内置公开价格快照估算 API 等价费用，并支持 USD、AUD 和 EUR。
+- 管理本机账户资料，并可选择仅切换 Meter 或同时切换 Codex 桌面应用。
+- 提供图标加百分比、仅百分比、仅图标和活动图等菜单栏显示方式。
+- 附带可供自动化使用的 `codex-meter` 命令行工具源码与构建目标。
+- 原生支持 Apple 芯片和 Intel Mac。
 
-I built this because I wanted one simple answer sitting in the menu bar: **how much Codex do I have left?** I did not want fake estimates, a web account, an Electron app or another service collecting usage data.
+> 费用始终标为“API 等价估算”，并不是 ChatGPT 订阅账单。
 
-> Cost is always labelled as an **API-equivalent estimate**. It is not presented as your ChatGPT subscription bill.
+## 系统要求
 
-## At a glance
+- macOS 13 Ventura 或更高版本
+- 已安装并登录 ChatGPT/Codex
+- 能返回额度信息的 Codex 方案
 
-| Quota | Local insight | Cost | Automation |
-| --- | --- | --- | --- |
-| Remaining percentage | Seven-day native chart | Official per-model rates | Universal CLI |
-| Exact reset time | Model-by-model usage | USD, AUD or EUR | JSON output |
-| Honest stale/error state | Prompts stay ignored | Unknown models stay unpriced | Threshold exit codes |
+## 下载与安装
 
-## Why Codex Meter is different
+1. 从本仓库的 [Releases](../../releases/latest) 下载
+   `Codex-Meter-ZH-CN-1.5.0-zh.1.zip`。
+2. 解压后，将 **Codex Meter 中文版.app** 拖入 `/Applications`。
+3. 首次打开后，菜单栏会出现仪表图标和剩余比例。
 
-### Honest when data fails
+当前社区构建使用 ad-hoc 签名，未经过 Apple 公证。若 Gatekeeper 阻止首次启动，
+请在 Finder 中按住 Control 点按 **Codex Meter 中文版.app**，选择“打开”，再确认一次。
+之后可以正常双击启动。请只从本仓库 Releases 下载，并在需要时用同页的
+`.sha256` 文件核对下载内容。
 
-If Codex cannot return a current limit, Codex Meter says it is unavailable. It never leaves a stale percentage looking current and never invents a reset estimate.
+## 与上游英文版共存
 
-### Open enough to trust
+中文版使用独立的应用名 **Codex Meter 中文版.app** 和独立 Bundle ID
+`com.xuancao1953.codexmeter.zhcn`，不会覆盖上游的 **Codex Meter.app**。
+安装脚本也只操作中文版路径，因此两个版本可以同时放在 `/Applications`；
+但它们都读取同一套本机 Codex 状态，分别启用登录启动或通知时可能产生重复提示。
 
-The complete Swift source, local-log parser, build scripts and release automation are public. You can inspect exactly what the app reads and verify that it does not copy credentials or transmit local history.
+## 隐私
 
-### A true one-job Mac app
+Codex Meter 中文版没有广告、分析 SDK 或独立云端服务。额度查询通过本机
+`codex app-server` 完成；历史统计只从本机 rollout 日志中保留模型 ID、时间戳和
+累计数字，不上传提示词、回复或工具载荷。账户资料与偏好保留在本机。
 
-No Electron runtime, background helper daemon, analytics SDK or external database. The native app sleeps between quota checks and scans local activity at most every ten minutes.
+完整数据流与边界请参阅 [隐私说明](docs/privacy.md) 和
+[架构说明](docs/architecture.md)。这两份上游文档目前仍以英文提供；若中文版实现
+改变这些边界，会在发布前同步更新说明。
 
-### Power without a privacy trade-off
+## 从源码构建
 
-Alert thresholds, menu-bar modes, history charts, cost rates and CLI automation stay on your Mac. No separate API key or external dependency is required.
-
-## Features
-
-- Shows the most constrained Codex allowance directly in the macOS menu bar.
-- Breaks down every available usage window with a percentage and local reset time.
-- Refreshes automatically every two minutes, with manual refresh when you want it.
-- Warns you when remaining usage drops below 10%, 20%, or 30%.
-- Detects stale or unavailable data instead of leaving a misleading old number visible.
-- Builds a seven-day token activity chart from aggregate events in local Codex session logs.
-- Breaks local usage down by the actual model recorded for each Codex turn.
-- Automatically calculates an API-equivalent estimate with bundled official OpenAI standard prices.
-- Displays estimates in USD, AUD or EUR with a dated local ECB reference-rate snapshot.
-- Adds accounts through OpenAI's secure browser login, then hot-swaps profiles from the account menu beside refresh.
-- Asks whether each profile change should affect Meter only or Meter plus the Codex desktop app.
-- For a desktop swap, signs Codex out through the official app-server method, completes OpenAI's browser login, verifies the account and relaunches Codex.
-- Deletes unused local account profiles and their saved Codex credentials with confirmation, including stale records whose folder is already gone.
-- Shows OpenAI's real banked-reset count when the account returns it, and celebrates reset, savings and token milestones.
-- Switches between icon + percentage, percentage-only, icon-only and activity-chart menu-bar modes.
-- Includes a universal `codex-meter` CLI with stable text/JSON output and threshold exit codes.
-- Supports launch at login without adding a Dock icon.
-- Keeps usage windows, activity, accounts and settings collapsible so the popover stays calm.
-- Works natively on Apple silicon and Intel Macs.
-
-## Download and install
-
-1. Download the latest `Codex-Meter-*.zip` from [GitHub Releases](https://github.com/TheJhyeFactor/codex-meter/releases/latest).
-2. Unzip it and move **Codex Meter.app** into `/Applications`.
-3. Open it once. The gauge and remaining percentage will appear in your menu bar.
-
-The ZIP also includes the optional `codex-meter` command-line tool and an installation note.
-
-The current community build is ad-hoc signed, not Apple-notarized. If macOS blocks the first launch, Control-click the app in Finder, choose **Open**, then confirm **Open** once. The normal double-click flow works after that.
-
-### Requirements
-
-- macOS 13 Ventura or newer
-- ChatGPT/Codex installed and signed in
-- A Codex plan that returns rate-limit information
-
-Codex Meter checks the ChatGPT app bundle and common Homebrew, npm, Volta, and local CLI locations. Developers launching from Terminal can also set `CODEX_PATH` to an absolute Codex executable path.
-
-Codex Meter keeps each saved profile in an isolated `CODEX_HOME`. When you choose **Meter + Codex**, it uses OpenAI's documented `account/logout` and ChatGPT browser-login flow against the default Codex profile, verifies that login, then relaunches the desktop app. OpenAI does not publish a direct account-switch deep link, so a browser confirmation is required; Codex Meter never asks for or handles your password or MFA code.
-
-## Privacy by design
-
-This app has one job and does not need your data for anything else.
-
-- No analytics
-- No ads
-- No tracking
-- No extra network service
-- No copied or stored Codex credentials
-- No uploaded session history
-
-Codex Meter starts the local `codex app-server` process and calls its read-only `account/rateLimits/read` method. For history, it prefilters `turn_context` and `token_count` lines from local rollout logs, then a narrow decoder retains only model IDs, timestamps and cumulative numeric totals; prompts, responses and tool payload fields are ignored. It never reads `~/.codex/auth.json` and never calls the rate-limit reset action. See [Privacy](docs/privacy.md) and [Architecture](docs/architecture.md) for the full data flow.
-
-## CLI and scripting
+需要 macOS 上的 Swift 工具链：
 
 ```sh
-# Human-readable limit status
-codex-meter status
-
-# Stable JSON for Shortcuts, jq or scripts
-codex-meter status --json
-
-# Exit 2 when the tightest window reaches 20% or lower
-codex-meter status --threshold 20
-
-# Seven days of local token activity
-codex-meter history --days 7 --json
-
-# Show the model breakdown and estimates in Australian dollars
-codex-meter history --days 7 --currency AUD
-```
-
-Known models are priced automatically using a bundled snapshot of official standard API rates. Optional flags provide a fallback for unknown future models:
-
-```sh
-codex-meter history --days 30 \
-  --input-rate 2.00 \
-  --cached-input-rate 0.50 \
-  --output-rate 8.00
-```
-
-The result includes each model's token total, share, pricing status and estimate. USD is the base price; AUD and EUR conversion uses a dated [European Central Bank reference-rate snapshot](https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html). It is labelled **API-equivalent estimate**—not ChatGPT subscription spend. The bundled price snapshot is dated and linked to the [official OpenAI model catalogue](https://developers.openai.com/api/docs/models); long-context, regional, priority, batch, flex and tool-call adjustments are not inferred from local aggregate logs. See the full [CLI reference](docs/cli.md).
-
-## Build it yourself
-
-You need the macOS Swift toolchain.
-
-```sh
-git clone https://github.com/TheJhyeFactor/codex-meter.git
-cd codex-meter
+git clone https://github.com/xuancao1953-1/codex-meter-zh-cn.git
+cd codex-meter-zh-cn
 SKIP_LIVE_CODEX_CHECK=1 ./scripts/test.sh
-./scripts/build-app.sh
-open "dist/Codex Meter.app"
+./scripts/build-app.sh dist
+open "dist/Codex Meter 中文版.app"
 ```
 
-Run `./scripts/test.sh` without the environment variable when Codex is installed and signed in to include the live integration check.
+`scripts/build-app.sh` 会生成通用架构应用、独立 CLI、
+`Codex-Meter-ZH-CN-1.5.0-zh.1.zip` 及其 SHA-256 文件。若要进行完全干净的本地构建：
 
-## Why open source?
+```sh
+rm -rf .build .build-arm64 .build-x86_64 dist
+SKIP_LIVE_CODEX_CHECK=1 ./scripts/test.sh
+./scripts/build-app.sh dist
+```
 
-A usage meter should be easy to inspect and easy to trust. You can see exactly what Codex Meter runs, how it reads the percentage, what it stores, and what it does not touch.
+上面的清理命令只应在仓库根目录运行，它会删除本仓库的本地构建产物。
 
-If you find a bug or have a practical improvement, [open an issue](https://github.com/TheJhyeFactor/codex-meter/issues) or read [CONTRIBUTING.md](CONTRIBUTING.md).
+## 命令行工具
 
-## Widget status
+从源码构建后可直接使用 `dist/codex-meter`：
 
-The data layer is ready for a future macOS widget, but the public ad-hoc build does not claim WidgetKit support yet. Reliable widgets require an Apple team-bound App Group, separately signed extension and notarized distribution. Shipping a half-working widget would break the same honest-error promise this app is built around. The exact production path is documented in [Widget roadmap](docs/widget-roadmap.md).
+```sh
+dist/codex-meter status
+dist/codex-meter status --json
+dist/codex-meter status --threshold 20
+dist/codex-meter history --days 7 --json
+```
 
-## Project status
+更多参数见 [CLI 参考](docs/cli.md)（当前为英文）。
 
-Codex Meter tracks the local Codex app-server interface and local rollout aggregate format. These can change between Codex versions, so compatibility fixes may be needed as Codex evolves. Errors are shown honestly rather than replaced with estimated quota data.
+## 更新策略
 
-## License
+中文版不会自动追踪上游每个提交。每次同步都会先固定并记录一个已审阅的上游提交，
+再合入中文本地化、独立包标识和发布改动；详情记录在 [UPSTREAM.md](UPSTREAM.md)。
+中文版使用 `v<上游版本>-zh.<修订号>` 标签，例如 `v1.5.0-zh.1`。上游的新功能、
+接口变化或安全修复只有在完成审阅、中文审计和 macOS 构建验证后才会进入中文版。
 
-MIT licensed. Free to use, modify, and share. See [LICENSE](LICENSE).
+## 许可证与项目关系
 
----
+本项目依据 [MIT License](LICENSE) 开源，并保留原许可证文本。原始项目的著作权和
+贡献归原作者及贡献者所有；中文版本的新增改动归相应贡献者所有。
 
-Built and maintained by [Jhye / The Jhye Factor](https://github.com/TheJhyeFactor).
-
-> Codex Meter is an independent community project. It is not affiliated with, endorsed by, or sponsored by OpenAI. Codex and OpenAI are trademarks of their respective owners.
+Codex Meter 中文版是独立维护的非官方社区项目，与
+[TheJhyeFactor/codex-meter](https://github.com/TheJhyeFactor/codex-meter)、
+Jhye / The Jhye Factor 及 OpenAI 均不存在从属、认可、赞助或官方合作关系。
+Codex 和 OpenAI 是其各自权利人的商标。

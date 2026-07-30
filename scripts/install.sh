@@ -3,28 +3,44 @@ set -euo pipefail
 
 ROOT="${0:A:h:h}"
 "$ROOT/scripts/build-app.sh" "$ROOT/dist"
-STAGE="$(mktemp -d /Applications/.codex-meter-install.XXXXXX)"
+STAGE="$(mktemp -d /Applications/.codex-meter-zh-cn-install.XXXXXX)"
 trap 'rm -rf "$STAGE"' EXIT
+APP_PATH="/Applications/Codex Meter 中文版.app"
+BACKUP="/Applications/.Codex Meter 中文版.previous.app"
+HAD_BACKUP=0
+NEW_APP_INSTALLED=0
 
-pkill -x CodexMeter 2>/dev/null || true
-ditto --norsrc --noextattr --noqtn --noacl "$ROOT/dist/Codex Meter.app" "$STAGE/Codex Meter.app"
-xattr -cr "$STAGE/Codex Meter.app"
-codesign --force --deep --sign - "$STAGE/Codex Meter.app"
-codesign --verify --deep --strict "$STAGE/Codex Meter.app"
-
-if [[ -d "/Applications/Codex Meter.app" ]]; then
-  BACKUP="/Applications/.Codex Meter.previous.app"
-  rm -rf "$BACKUP"
-  mv "/Applications/Codex Meter.app" "$BACKUP"
-  if ! mv "$STAGE/Codex Meter.app" "/Applications/Codex Meter.app"; then
-    mv "$BACKUP" "/Applications/Codex Meter.app"
-    exit 1
+restore_previous() {
+  if (( NEW_APP_INSTALLED )); then
+    rm -rf "$APP_PATH"
   fi
+  if (( HAD_BACKUP )); then
+    mv "$BACKUP" "$APP_PATH"
+  fi
+}
+
+ditto --norsrc --noextattr --noqtn --noacl "$ROOT/dist/Codex Meter 中文版.app" "$STAGE/Codex Meter 中文版.app"
+xattr -cr "$STAGE/Codex Meter 中文版.app"
+codesign --force --deep --sign - "$STAGE/Codex Meter 中文版.app"
+codesign --verify --deep --strict "$STAGE/Codex Meter 中文版.app"
+
+if [[ -e "$APP_PATH" || -L "$APP_PATH" ]]; then
   rm -rf "$BACKUP"
-else
-  mv "$STAGE/Codex Meter.app" "/Applications/Codex Meter.app"
+  mv "$APP_PATH" "$BACKUP"
+  HAD_BACKUP=1
 fi
 
-codesign --verify --deep --strict "/Applications/Codex Meter.app"
-open "/Applications/Codex Meter.app"
-echo "Installed and opened /Applications/Codex Meter.app"
+if ! mv "$STAGE/Codex Meter 中文版.app" "$APP_PATH"; then
+  restore_previous
+  exit 1
+fi
+NEW_APP_INSTALLED=1
+
+if ! codesign --verify --deep --strict "$APP_PATH"; then
+  restore_previous
+  exit 1
+fi
+
+rm -rf "$BACKUP"
+open "$APP_PATH"
+echo "Installed and opened $APP_PATH"
